@@ -9,8 +9,8 @@ const addClick = addEvent('click');
 
 const logError = (msg) => console.error(msg);
 
-const toJson = () => {
-  const $file = document.getElementById('file');
+const toJson = R.thunkify((target) => {
+  const $file = target;
   const selectedFile = $file.files[0];
   if (!selectedFile) {
     alert('請先選擇檔案');
@@ -25,18 +25,21 @@ const toJson = () => {
       return;
     }
 
-    const workbook = XLSX.read(data, {
+    const getWorkboox = (curData) => XLSX.read(curData, {
       type: 'binary'
     });
 
-    const outputJson = (sheetName) => {
-      const row = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[sheetName]);
-      if (row.length > 0) {
-        getElementById("json").innerHTML = JSON.stringify(row);
-      }
-    }
+    const outputJson = R.curry((book, sheetName) => {
+      const row = XLSX.utils.sheet_to_row_object_array(book.Sheets[sheetName]);
+      return row;
+    })
 
-    R.forEach(outputJson, workbook.SheetNames)
+    const rowArr = R.pipe(
+      getWorkboox,
+      R.converge(R.map, [R.unary(outputJson), R.prop('SheetNames')]),
+    )(data)
+
+    console.log(rowArr)
   }
 
   reader.onerror = (event) => {
@@ -44,11 +47,11 @@ const toJson = () => {
   };
 
   reader.readAsBinaryString(selectedFile);
-}
+})
 
 const addToJsonEvent = R.pipe(
   getElementById,
-  addClick(toJson)
+  addClick(toJson(getElementById('file'))),
 );
 
 addToJsonEvent('format');
